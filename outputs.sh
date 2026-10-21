@@ -3,6 +3,7 @@
 # Prints the outputs of the running compositor in layout (logical) pixels, one per line, focused
 # output first: NAME X Y W H. niri is verified; Sway and Hyprland follow their IPC docs, untested.
 set -euo pipefail
+list() {
 if [ -n "${NIRI_SOCKET:-}" ]; then
     focused=$(niri msg -j focused-output | jq -r .name)
     niri msg -j outputs | jq -r --arg f "$focused" '[.[] | select(.logical != null)]
@@ -17,3 +18,10 @@ else
     echo "outputs.sh: no niri, Sway or Hyprland session found" >&2
     exit 1
 fi
+}
+out=$(list)
+if [ -z "$out" ]; then
+    echo "outputs.sh: no active output (display off or unplugged); screen tools cannot run" >&2
+    exit 1
+fi
+printf '%s\n' "$out"

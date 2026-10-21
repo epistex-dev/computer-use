@@ -23,6 +23,10 @@ wtype 'ascii text'                       # type (non-ASCII: trap 4)
 Arch; elsewhere it names what is missing), builds `vptr`, turns on accessibility, and ends by
 proving a pointer drag with slurp. Exit 0 means ready.
 
+`./outputs.sh` must print a line too. When it says "no active output", the display is off and no
+screen tool can act; reach the app another way, such as its local web UI or API (2026-10-21: a
+headless desktop listed zero outputs and `shot.sh` failed).
+
 ## Pick the route
 
 1. **Keys** when a shortcut reaches it: no coordinates at all. A browser's internal page is
