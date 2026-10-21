@@ -20,9 +20,11 @@ the wrong monitor. This skill takes the routes that measured exact:
 ## Install
 
 ```sh
-git clone https://github.com/EPISTEX0/computer-use ~/.claude/skills/computer-use   # or ~/.agents/skills/
-cd ~/.claude/skills/computer-use && ./setup.sh
+npx skills add EPISTEX0/computer-use        # any agent the skills CLI knows; or:
+git clone https://github.com/EPISTEX0/computer-use ~/.claude/skills/computer-use
 ```
+
+Then run `./setup.sh` in the installed directory.
 
 `setup.sh` is idempotent. It installs packages with pacman on Arch, builds `vptr`, turns on
 AT-SPI, and proves a pointer drag with `slurp`; exit 0 means ready. On other distros, install
