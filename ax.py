@@ -92,8 +92,10 @@ def main():
             ids = [w['id'] for w in json.loads(window.stdout) if w['pid'] == pid]
             subprocess.run(['niri', 'msg', 'action', 'focus-window', '--id', str(ids[0])], check=True)
             node.get_component_iface().grab_focus()
-            if any(ord(c) > 0xFFFF for c in value):  # wtype turns characters outside the BMP into U+F600
-                print('ax.py: clipboard replaced to paste a character outside the BMP', file=sys.stderr)
+            # wtype turns characters outside the BMP into U+F600 and control characters into
+            # keypresses: Tab changes field, Return submits
+            if any(ord(c) > 0xFFFF or ord(c) < 0x20 or ord(c) == 0x7F for c in value):
+                print('ax.py: clipboard replaced to paste a control or non-BMP character', file=sys.stderr)
                 subprocess.run(['wl-copy', '--', value], check=True, stdout=subprocess.DEVNULL)
                 time.sleep(0.1)
                 subprocess.run(['wtype', '-M', 'ctrl', 'a', '-m', 'ctrl', '-M', 'ctrl', 'v', '-m', 'ctrl'], check=True)

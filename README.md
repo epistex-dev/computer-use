@@ -14,7 +14,7 @@ the wrong monitor. This skill takes the routes that measured exact:
 | Point, click, drag, scroll | `vptr`, a 100-line C client of the wlr virtual-pointer protocol | One absolute jump over the whole layout: exact on every output, 1-2 ms, no root, no `/dev/uinput` |
 | See | `grim` per output or region | No portal permission prompt; one output stays under the model's image size limit; the cursor is hidden unless `SHOT_CURSOR=1` (`grim -c`) |
 | Find a label | `tesseract` with Vietnamese-aware fuzzy matching | Folds diacritics, glued words and l/I confusions that OCR produces on UI text |
-| Press, check, fill without coordinates | `ax.py` over AT-SPI | Works on unfocused windows and through layout shifts, under 0.2 s; `set` reads the value back (exit 3 on mismatch) and leaves the clipboard alone except for emoji; GTK4 check buttons expose no action, so use `find.sh` and `pointer.sh` there |
+| Press, check, fill without coordinates | `ax.py` over AT-SPI | Works on unfocused windows and through layout shifts, under 0.2 s; `set` reads the value back (exit 3 on mismatch) and leaves the clipboard alone except for emoji and values with a tab or newline; GTK4 check buttons expose no action, so use `find.sh` and `pointer.sh` there |
 | Type | `wtype`, then check; the clipboard for emoji | `wtype` typed Vietnamese right 10/10 in Chromium on 2026-10-26 but dropped characters on 2026-10-21; it turns emoji into U+F600 |
 
 ## Install

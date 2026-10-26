@@ -5,7 +5,7 @@
 # follow their IPC docs, untested.
 set -euo pipefail
 pid=${1:-}
-[[ $pid =~ ^[0-9]+$ ]] || { echo "usage: focus.sh PID" >&2; exit 2; }
+[[ $# -eq 1 && $pid =~ ^[0-9]+$ ]] || { echo "usage: focus.sh PID" >&2; exit 2; }
 if [ -n "${NIRI_SOCKET:-}" ]; then
     id=$(niri msg -j windows | jq -r --argjson p "$pid" '[.[] | select(.pid == $p)][0].id // empty')
     [ -n "$id" ] || { echo "focus.sh: no window with pid $pid" >&2; exit 1; }

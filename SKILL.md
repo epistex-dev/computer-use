@@ -39,8 +39,9 @@ headless desktop listed zero outputs and `shot.sh` failed).
    actions, `do` presses, checks or opens one, `set` fills a field. Chromium refuses direct text
    writes, so `set` focuses the field, selects all and types, which takes keyboard focus. `set`
    reads the value back: exit 3 and `mismatch: got "..."` on stderr when it differs (a
-   `maxlength` field cut "abcdefgh" to "abcde"). The clipboard is left alone except for emoji,
-   which wtype cannot type; `set` then pastes and says so on stderr. GTK4 check buttons expose no
+   `maxlength` field cut "abcdefgh" to "abcde"). The clipboard is left alone except for emoji
+   (wtype cannot type them) and values with a tab or newline (wtype would press Tab or Return);
+   `set` then pastes and says so on stderr. GTK4 check buttons expose no
    AX action (2026-10-26), so `do` fails on them: use `find.sh` and `pointer.sh`. Get the PID
    from the window list: `niri msg -j windows`, `swaymsg -t get_tree`, `hyprctl -j clients`;
    `focus.sh PID` brings that window to the front.
