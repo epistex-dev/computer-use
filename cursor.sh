@@ -74,6 +74,8 @@ try:
     fail(why)
 except subprocess.CalledProcessError as e:
     fail(f'{e.cmd[0]} failed: {(e.stderr or "").strip()}')
+except OSError as e:
+    fail(str(e))
 PY
     ) || exit 1
     echo "$pos" > "$state"
