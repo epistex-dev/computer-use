@@ -47,6 +47,8 @@ The agent reads [SKILL.md](SKILL.md). By hand:
 ./pointer.sh 3046 363 left
 ./pointer.sh 500 400 drag 700 600
 ./pointer.sh 1000 500 scroll 5
+./cursor.sh save                # 300 200: the owner's pointer, read by diffing grim and grim -c
+./cursor.sh restore             # moves it back (a move, no click) and forgets it
 ./ax.py 12345 do "Allow"        # PID from niri msg -j windows
 ./ax.py 12345 set "Search" "xin chào"   # exit 3 and mismatch: got "..." if the field differs
 ./focus.sh 12345                # focus that process's window

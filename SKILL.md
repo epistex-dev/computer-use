@@ -14,6 +14,7 @@ Run these from this skill's directory:
 ./ax.py PID list [text] | do "name" | set "name" "value"   # accessibility tree, no coordinates
 ./focus.sh PID                           # focus that process's window (exit 1: no such window)
 ./pointer.sh X Y [left|right|middle|double | drag X2 Y2 | scroll N]
+./cursor.sh save | restore               # owner's pointer position: save, then put it back
 wtype -M ctrl l -m ctrl                  # key combo; wtype -k Return, -k Escape, -k Tab
 wtype 'text'                             # type, then check the result (trap 4)
 ./outputs.sh                             # NAME X Y W H per output, focused first
@@ -48,6 +49,16 @@ headless desktop listed zero outputs and `shot.sh` failed).
 3. **`find.sh`, then `pointer.sh`**, for everything else: 2-10 s per output (see Measured on) and
    no image tokens.
 4. **A screenshot and coordinates** when there is no text to find.
+
+## Give the pointer back
+
+The pointer is the owner's: niri has one seat. Before a task that will use `pointer.sh`, run
+`./cursor.sh save` (prints `X Y`; about 0.15 s; it diffs `grim` against `grim -c`, so it needs a
+still screen and a visible pointer). Run `./cursor.sh restore` only when the whole UI task is
+done, never between a click and the typing that follows: with focus following the mouse,
+restoring moves keyboard focus back to the owner's window. If `save` exits 1, carry on and say
+in the report that the pointer was not restored. Routes 1 and 2 (keys, `ax.py`) never move the
+pointer, so they need neither.
 
 ## One step
 
@@ -107,6 +118,10 @@ slurp is the ruler, since the cursor is hidden unless `SHOT_CURSOR=1`:
   both outputs; a jump takes 1-2 ms; Chromium scrolls 120 px per notch. `ax.py list` 0.14 s.
   `find.sh` about 2 s per output.
 - **find.sh took 9-10.5 s per output** under load (2026-10-26, a busy desktop; 12 s of CPU).
+- **cursor.sh save** took 0.12-0.14 s on those two outputs and landed within 1 px of the pointer
+  on white, grey and black grounds (arrow and I-beam, 2026-10-26); an animated full screen gave
+  exit 1 in 0.6 s. The Bibata arrow's hotspot offset is measured, so another cursor theme may be
+  off by a few pixels. A pointer on the last row of the screen over black is invisible: exit 1.
 - **Sway, Hyprland**: `outputs.sh` follows their IPC; untested.
 - **GNOME** has no wlr virtual-pointer or screencopy, so `pointer.sh` and `shot.sh` do not run.
   KDE is untested.
