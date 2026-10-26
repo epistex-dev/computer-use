@@ -9,11 +9,13 @@ Run these from this skill's directory:
 
 ```
 ./shot.sh [OUTPUT | "X,Y WxH"]          # look: prints <file> origin=X,Y size=WxH; Read the file
+                                         # SHOT_CURSOR=1 ./shot.sh draws the cursor (trap 1)
 ./find.sh "label" [OUTPUT | "X,Y WxH"]   # OCR: X Y conf "line" per match, exact lines first
 ./ax.py PID list [text] | do "name" | set "name" "value"   # accessibility tree, no coordinates
+./focus.sh PID                           # focus that process's window (exit 1: no such window)
 ./pointer.sh X Y [left|right|middle|double | drag X2 Y2 | scroll N]
 wtype -M ctrl l -m ctrl                  # key combo; wtype -k Return, -k Escape, -k Tab
-wtype 'ascii text'                       # type (non-ASCII: trap 4)
+wtype 'text'                             # type, then check the result (trap 4)
 ./outputs.sh                             # NAME X Y W H per output, focused first
 ```
 
@@ -35,9 +37,15 @@ headless desktop listed zero outputs and `shot.sh` failed).
    Chromium and Electron started with `--force-renderer-accessibility`. It works on unfocused
    windows, ignores layout shifts and answers in under 0.2 s. `list` shows controls with their
    actions, `do` presses, checks or opens one, `set` fills a field. Chromium refuses direct text
-   writes, so `set` focuses the field, selects all and pastes, which replaces the clipboard. Get
-   the PID from the window list: `niri msg -j windows`, `swaymsg -t get_tree`, `hyprctl -j clients`.
-3. **`find.sh`, then `pointer.sh`**, for everything else: about 2 s per output and no image tokens.
+   writes, so `set` focuses the field, selects all and types, which takes keyboard focus. `set`
+   reads the value back: exit 3 and `mismatch: got "..."` on stderr when it differs (a
+   `maxlength` field cut "abcdefgh" to "abcde"). The clipboard is left alone except for emoji,
+   which wtype cannot type; `set` then pastes and says so on stderr. GTK4 check buttons expose no
+   AX action (2026-10-26), so `do` fails on them: use `find.sh` and `pointer.sh`. Get the PID
+   from the window list: `niri msg -j windows`, `swaymsg -t get_tree`, `hyprctl -j clients`;
+   `focus.sh PID` brings that window to the front.
+3. **`find.sh`, then `pointer.sh`**, for everything else: 2-10 s per output (see Measured on) and
+   no image tokens.
 4. **A screenshot and coordinates** when there is no text to find.
 
 ## One step
@@ -60,17 +68,20 @@ remote-debugging prompts took three clicks).
 
 ## The traps, all measured
 
-1. **The cursor is invisible in screenshots.** `pointer.sh` is exact, so the pointer is where
-   your last `pointer.sh` put it unless the owner moved the mouse.
+1. **The cursor is hidden in screenshots by default.** `SHOT_CURSOR=1 ./shot.sh` shows it (grim
+   `-c`, measured 2026-10-26). `pointer.sh` is exact, so the pointer is where your last
+   `pointer.sh` put it unless the owner moved the mouse.
 2. **Tiling layouts shift** whenever a window opens or closes (niri scrolls sideways).
    Coordinates from a screenshot taken before that shift point at a different window.
 3. **Focus may follow the mouse**, so a pointer jump can move keyboard focus. Before typing,
    check the focused window (`niri msg focused-window`, `hyprctl activewindow`, or the
    `focused` node of `swaymsg -t get_tree`) and stop if it is not the one you meant.
-4. **Typing is ASCII only.** `wtype` drops some characters in Chromium (2026-10-21: "đường đi"
-   arrived as "ường i"). Vietnamese, emoji or long text go through the clipboard:
-   `printf %s "xin chào" | wl-copy`, then `wtype -M ctrl v -m ctrl` (Ctrl+Shift+V in a terminal).
-   This replaces the owner's clipboard; say so in your report.
+4. **`wtype` is usually right, not always.** It typed "đường đi xin chào" correctly 10/10 in
+   Chromium and 5/5 in GTK on 2026-10-26, but dropped characters on 2026-10-21 ("đường đi"
+   arrived as "ường i"). Type with `wtype`, then check the result (a screenshot or `ax.py list`).
+   Use the clipboard only for emoji (wtype turns them into U+F600) or when the check fails:
+   `printf %s "xin chào" | wl-copy`, then `wtype -M ctrl v -m ctrl` (Ctrl+Shift+V in a
+   terminal). This replaces the owner's clipboard; say so in your report.
 5. **Other tools may ask for standing permissions.** A portal screenshot request shows "Allow
    apps to take screenshots at any time?". `grim` needs no permission, so deny prompts you did
    not expect.
@@ -85,7 +96,7 @@ scale an image down, scale its coordinates back up before clicking.
 
 ## Verifying a pointer position
 
-slurp is the ruler, since the cursor never appears in a screenshot:
+slurp is the ruler, since the cursor is hidden unless `SHOT_CURSOR=1`:
 `slurp -f '%x,%y %wx%h' & sleep 1.2; ./pointer.sh X Y drag $((X+200)) $((Y+200))` prints
 `X,Y 201x201`. Kill slurp if a step fails, or its overlay keeps grabbing the owner's mouse.
 
@@ -94,6 +105,7 @@ slurp is the ruler, since the cursor never appears in a screenshot:
 - **niri, two 1920x1080 outputs side by side** (2026-10-21). Pointer, drag and scroll exact on
   both outputs; a jump takes 1-2 ms; Chromium scrolls 120 px per notch. `ax.py list` 0.14 s.
   `find.sh` about 2 s per output.
+- **find.sh took 9-10.5 s per output** under load (2026-10-26, a busy desktop; 12 s of CPU).
 - **Sway, Hyprland**: `outputs.sh` follows their IPC; untested.
 - **GNOME** has no wlr virtual-pointer or screencopy, so `pointer.sh` and `shot.sh` do not run.
   KDE is untested.

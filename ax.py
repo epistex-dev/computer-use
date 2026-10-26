@@ -3,11 +3,13 @@
 
   ax.py PID list [TEXT]          controls whose name contains TEXT: path role "name" [actions]
   ax.py PID do "name" [ACTION]   invoke ACTION (default the first one) on the best match
-  ax.py PID set "name" "value"   replace a field's text; where the app refuses (Chromium), focus
-                                 the field, select all and paste the value from the clipboard
+  ax.py PID set "name" "value"   replace a field's text, then read it back; where the app refuses
+                                 (Chromium), focus the field, select all and type the value
+                                 (emoji go through the clipboard, which this replaces)
 
 PID comes from `niri msg -j windows`. Names match like find.sh: case, spaces and diacritics
-are folded, an exact name beats a substring. Exits 1 when nothing matches.
+are folded, an exact name beats a substring. Exits 1 when nothing matches, 3 when `set` reads
+back something other than the value (stderr: mismatch: got "...").
 """
 import json, subprocess, sys, time, unicodedata, warnings
 import gi
@@ -83,18 +85,30 @@ def main():
         node.get_action_iface().do_action(i)
         print(node.get_role_name(), f'"{node.get_name()}"', names[i])
     elif cmd == 'set':
+        value = rest[1]
         editable = node.get_editable_text_iface()
-        if not (editable and editable.set_text_contents(rest[1])):
+        if not (editable and editable.set_text_contents(value)):
             window = subprocess.run(['niri', 'msg', '-j', 'windows'], capture_output=True, text=True)
             ids = [w['id'] for w in json.loads(window.stdout) if w['pid'] == pid]
             subprocess.run(['niri', 'msg', 'action', 'focus-window', '--id', str(ids[0])], check=True)
             node.get_component_iface().grab_focus()
-            subprocess.run(['wl-copy', '--', rest[1]], check=True)
-            time.sleep(0.1)
-            subprocess.run(['wtype', '-M', 'ctrl', 'a', '-m', 'ctrl', '-M', 'ctrl', 'v', '-m', 'ctrl'], check=True)
-        time.sleep(0.1)
+            if any(ord(c) > 0xFFFF for c in value):  # wtype turns characters outside the BMP into U+F600
+                print('ax.py: clipboard replaced to paste a character outside the BMP', file=sys.stderr)
+                subprocess.run(['wl-copy', '--', value], check=True, stdout=subprocess.DEVNULL)
+                time.sleep(0.1)
+                subprocess.run(['wtype', '-M', 'ctrl', 'a', '-m', 'ctrl', '-M', 'ctrl', 'v', '-m', 'ctrl'], check=True)
+            else:
+                subprocess.run(['wtype', '-M', 'ctrl', 'a', '-m', 'ctrl', '--', value], check=True)
         text = node.get_text_iface()
-        print(node.get_role_name(), f'"{node.get_name()}"', '=', repr(Atspi.Text.get_text(text, 0, -1) if text else rest[1]))
+        for _ in range(10):  # Chromium updates its tree a moment after the keys land
+            time.sleep(0.1)
+            got = Atspi.Text.get_text(text, 0, -1) if text else ''
+            if got == value:
+                break
+        if got != value:
+            print(f'mismatch: got "{got}"', file=sys.stderr)
+            sys.exit(3)
+        print(node.get_role_name(), f'"{node.get_name()}"', '=', repr(got))
     else:
         sys.exit(__doc__)
 
