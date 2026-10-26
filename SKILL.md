@@ -120,8 +120,10 @@ slurp is the ruler, since the cursor is hidden unless `SHOT_CURSOR=1`:
 - **find.sh took 9-10.5 s per output** under load (2026-10-26, a busy desktop; 12 s of CPU).
 - **cursor.sh save** took 0.12-0.14 s on those two outputs and landed within 1 px of the pointer
   on white, grey and black grounds (arrow and I-beam, 2026-10-26); an animated full screen gave
-  exit 1 in 0.6 s. The Bibata arrow's hotspot offset is measured, so another cursor theme may be
-  off by a few pixels. A pointer on the last row of the screen over black is invisible: exit 1.
+  exit 1 in 0.6 s. The arrow, I-beam, crosshair and link hand are told apart by their diff box
+  and landed within 1 px; the offsets are Bibata's, so another cursor theme may be off by a few
+  pixels. A pointer on the last row of the screen over black is invisible: exit 1. Cut off at the
+  right edge, any shape is read as the arrow (an I-beam there is 12 px off).
 - **Sway, Hyprland**: `outputs.sh` follows their IPC; untested.
 - **GNOME** has no wlr virtual-pointer or screencopy, so `pointer.sh` and `shot.sh` do not run.
   KDE is untested.
