@@ -20,8 +20,8 @@ the wrong monitor. This skill takes the routes that measured exact:
 ## Install
 
 ```sh
-npx skills add EPISTEX0/computer-use        # any agent the skills CLI knows; or:
-git clone https://github.com/EPISTEX0/computer-use ~/.claude/skills/computer-use
+npx skills add epistex-dev/computer-use        # any agent the skills CLI knows; or:
+git clone https://github.com/epistex-dev/computer-use ~/.claude/skills/computer-use
 ```
 
 Then run `./setup.sh` in the installed directory.
