@@ -2,7 +2,7 @@
 // Waits until the seat has had no input for IDLE_MS (ext-idle-notify-v1, the input-only variant
 // that idle inhibitors such as a playing video do not hold off), for at most MAX_MS. Prints the
 // milliseconds waited and exits 0 when idle, 4 on timeout, 1 when the compositor lacks the
-// protocol, 2 on bad usage.
+// protocol or the connection drops, 2 on bad usage.
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,9 +59,10 @@ int main(int argc, char **argv) {
         wl_display_flush(dpy);
         while (wl_display_prepare_read(dpy) != 0) wl_display_dispatch_pending(dpy);
         struct pollfd p = {wl_display_get_fd(dpy), POLLIN, 0};
-        if (poll(&p, 1, left > 100 ? 100 : (int)left) > 0) wl_display_read_events(dpy);
-        else wl_display_cancel_read(dpy);
-        wl_display_dispatch_pending(dpy);
+        if (poll(&p, 1, left > 100 ? 100 : (int)left) > 0) {
+            if (wl_display_read_events(dpy) < 0) { fprintf(stderr, "vidle: connection to the compositor lost\n"); return 1; }
+        } else wl_display_cancel_read(dpy);
+        if (wl_display_dispatch_pending(dpy) < 0) { fprintf(stderr, "vidle: connection to the compositor lost\n"); return 1; }
     }
     printf("%ld\n", now_ms() - start);
     return 0;
