@@ -60,8 +60,14 @@ takes at least that long, and gives up after `POINTER_WAIT_S` (default 30) with 
 is using the mouse or keyboard`. Nothing was clicked on exit 4: retry later, or hand the owner one
 step. Keyboard input counts too, because a click moves keyboard focus.
 
-The first `pointer.sh` call runs `cursor.sh save` unless a save from the last 30 minutes exists
-(it prints `X Y`; about 0.15 s; it diffs `grim` against `grim -c`, so it needs a still screen and a
+An app you open yourself runs on the agent's own desktop, so the owner's pointer stays put:
+`./agent-seat.sh start` launches a private headless Sway (`env` prints its variables again, `stop`
+removes it), and `eval "$(./agent-seat.sh env)"` aims `pointer.sh`, `shot.sh`, `focus.sh` and
+`ax.py` and the app's `WAYLAND_DISPLAY` at it. On the owner's desktop, `pointer.sh` needs
+`POINTER_WHY` and waits for the owner to be idle; the hook denies direct `vptr` and `ydotool`.
+
+The first `pointer.sh` call runs `cursor.sh save` before it waits, unless a save from the last 30
+minutes exists, so the save holds where the owner left the pointer (it prints `X Y`; about 0.15 s; it diffs `grim` against `grim -c`, so it needs a still screen and a
 visible pointer). Run `./cursor.sh restore` only when the whole UI task is done, never between a
 click and the typing that follows: with focus following the mouse, restoring moves keyboard focus
 back to the owner's window. If the save fails (exit 1, message on stderr), the action still runs;

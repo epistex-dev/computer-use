@@ -81,10 +81,13 @@ class PointerYield(unittest.TestCase):
         self.new_holder()
         subprocess.run([VPTR, str(x - self.minx), str(y - self.miny), str(self.w), str(self.h)], env=self.env, check=True)
 
-    def jiggle(self, seconds, around=(100, 100)):
-        """A second process standing in for the owner: a pointer move every 0.5 s, the last at seconds-0.5."""
+    def jiggle(self, seconds, around=(100, 100), end=None):
+        """A second process standing in for the owner: a pointer move every 0.5 s, the last at seconds-0.5
+        (`end`: the owner's pointer comes to rest there, as one more move at the very end)."""
         script = (f'for i in $(seq {int(seconds * 2)}); do "{VPTR}" $(({around[0]}+i%2*10-{self.minx})) '
                   f'{around[1] - self.miny} {self.w} {self.h}; sleep 0.5; done')
+        if end:
+            script += f'; "{VPTR}" {end[0] - self.minx} {end[1] - self.miny} {self.w} {self.h}'
         return self.spawn("bash", "-c", script)
 
     def read_pointer(self):
@@ -185,12 +188,29 @@ class PointerYield(unittest.TestCase):
         r = subprocess.run([POINTER, "700", "500", "left"], env=env, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(self.state.exists(), f"no position was saved: {r.stderr}")
-        self.assertNear(tuple(map(int, self.state.read_text().split())), (250, 220), 1)
+        saved = tuple(map(int, self.state.read_text().split()))
+        self.assertNear(saved, (250, 220), 1)
         self.assertNear(self.read_pointer(), (700, 500), 1)
         r = subprocess.run([CURSOR, "restore"], env=env, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse(self.state.exists(), "restore left the state")
-        self.assertNear(self.read_pointer(), (250, 220), 1)
+        # The saved coordinate already carries the hotspot offset, and read_pointer adds it again.
+        self.assertNear(self.read_pointer(), (saved[0] + self.off[0], saved[1] + self.off[1]), 1, off=False)
+
+    # (g) the save is taken before the wait: it holds where the owner's pointer was when the call began
+    def test_g_saves_before_waiting(self):
+        self.place(250, 220)
+        self.assertFalse(self.state.exists())
+        self.jiggle(4, around=(250, 220), end=(120, 90))   # active from the start, rests at 120,90 after ~4 s
+        env = dict(self.env, POINTER_WHY="test: no key or accessibility route")
+        t0 = time.monotonic()
+        r = subprocess.run([POINTER, "400", "300", "drag", "600", "500"], env=env, capture_output=True, text=True)
+        elapsed = time.monotonic() - t0
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertGreaterEqual(elapsed, 4.0)    # the action still waits for the activity to end
+        self.assertTrue(self.state.exists(), f"no position was saved: {r.stderr}")
+        self.assertNear(tuple(map(int, self.state.read_text().split())), (255, 220), 12)   # not 120,90
+        self.assertNear(self.read_pointer(), (600, 500), 1)
 
     # a save from the last 30 minutes is kept; an older one is replaced
     def test_f_save_age(self):
