@@ -13,7 +13,7 @@ Run these from this skill's directory:
 ./find.sh "label" [OUTPUT | "X,Y WxH"]   # OCR: X Y conf "line" per match, exact lines first
 ./ax.py PID list [text] | do "name" | set "name" "value"   # accessibility tree, no coordinates
 ./focus.sh PID                           # focus that process's window (exit 1: no such window)
-./pointer.sh X Y [left|right|middle|double | drag X2 Y2 | scroll N]
+POINTER_WHY="why keys and ax.py cannot reach it" ./pointer.sh X Y [left|right|middle|double | drag X2 Y2 | scroll N]
 ./cursor.sh save | restore               # owner's pointer position: save, then put it back
 wtype -M ctrl l -m ctrl                  # key combo; wtype -k Return, -k Escape, -k Tab
 wtype 'text'                             # type, then check the result (trap 4)
@@ -22,9 +22,9 @@ wtype 'text'                             # type, then check the result (trap 4)
 
 ## Check first
 
-`test -x vptr && echo ok` must print `ok`; otherwise run `./setup.sh`. It installs the tools (on
-Arch; elsewhere it names what is missing), builds `vptr`, turns on accessibility, and ends by
-proving a pointer drag with slurp. Exit 0 means ready.
+`test -x vptr && test -x vidle && echo ok` must print `ok`; otherwise run `./setup.sh`. It
+installs the tools (on Arch; elsewhere it names what is missing), builds `vptr` and `vidle`,
+turns on accessibility, and ends by proving a pointer drag with slurp. Exit 0 means ready.
 
 `./outputs.sh` must print a line too. When it says "no active output", the display is off and no
 screen tool can act; reach the app another way, such as its local web UI or API (2026-10-21: a
@@ -47,18 +47,26 @@ headless desktop listed zero outputs and `shot.sh` failed).
    from the window list: `niri msg -j windows`, `swaymsg -t get_tree`, `hyprctl -j clients`;
    `focus.sh PID` brings that window to the front.
 3. **`find.sh`, then `pointer.sh`**, for everything else: 2-10 s per output (see Measured on) and
-   no image tokens.
+   no image tokens. `pointer.sh` exits 2 and moves nothing until `POINTER_WHY` holds a one-line
+   reason that keys and `ax.py` cannot reach the target; write that reason after you have tried
+   both (`export POINTER_WHY=...` once per task; later examples assume it).
 4. **A screenshot and coordinates** when there is no text to find.
 
 ## Give the pointer back
 
-The pointer is the owner's: niri has one seat. Before a task that will use `pointer.sh`, run
-`./cursor.sh save` (prints `X Y`; about 0.15 s; it diffs `grim` against `grim -c`, so it needs a
-still screen and a visible pointer). Run `./cursor.sh restore` only when the whole UI task is
-done, never between a click and the typing that follows: with focus following the mouse,
-restoring moves keyboard focus back to the owner's window. If `save` exits 1, carry on and say
-in the report that the pointer was not restored. Routes 1 and 2 (keys, `ax.py`) never move the
-pointer, so they need neither.
+The pointer is the owner's: niri has one seat. `pointer.sh` yields to the owner before every
+action: it waits until they have had no input for `POINTER_IDLE_MS` (default 2000), so each call
+takes at least that long, and gives up after `POINTER_WAIT_S` (default 30) with exit 4 and `owner
+is using the mouse or keyboard`. Nothing was clicked on exit 4: retry later, or hand the owner one
+step. Keyboard input counts too, because a click moves keyboard focus.
+
+The first `pointer.sh` call runs `cursor.sh save` unless a save from the last 30 minutes exists
+(it prints `X Y`; about 0.15 s; it diffs `grim` against `grim -c`, so it needs a still screen and a
+visible pointer). Run `./cursor.sh restore` only when the whole UI task is done, never between a
+click and the typing that follows: with focus following the mouse, restoring moves keyboard focus
+back to the owner's window. If the save fails (exit 1, message on stderr), the action still runs;
+say in the report that the pointer was not restored. Routes 1 and 2 (keys, `ax.py`) never move the
+pointer, so they need none of this.
 
 ## One step
 
@@ -109,7 +117,7 @@ scale an image down, scale its coordinates back up before clicking.
 ## Verifying a pointer position
 
 slurp is the ruler, since the cursor is hidden unless `SHOT_CURSOR=1`:
-`slurp -f '%x,%y %wx%h' & sleep 1.2; ./pointer.sh X Y drag $((X+200)) $((Y+200))` prints
+`slurp -f '%x,%y %wx%h' & sleep 1.2; POINTER_WHY=ruler ./pointer.sh X Y drag $((X+200)) $((Y+200))` prints
 `X,Y 201x201`. Kill slurp if a step fails, or its overlay keeps grabbing the owner's mouse.
 
 ## Measured on
@@ -124,6 +132,11 @@ slurp is the ruler, since the cursor is hidden unless `SHOT_CURSOR=1`:
   and landed within 1 px; the offsets are Bibata's, so another cursor theme may be off by a few
   pixels. A pointer on the last row of the screen over black is invisible: exit 1. Cut off at the
   right edge, any shape is read as the arrow (an I-beam there is 12 px off).
+- **vidle** (ext-idle-notify-v1) on niri 26.04 (2026-11-03): with the owner at the desk, `vidle 300
+  1500` printed 300 when they were idle and 1102-1310 right after they stopped, so it sees their
+  input. The compositor starts the timer when asked: an owner idle for an hour still costs the full
+  `POINTER_IDLE_MS`. On Sway a virtual pointer's own input also restarts the timer (902 ms for a
+  600 ms window with a move at 300 ms); on niri that is untested.
 - **Sway, Hyprland**: `outputs.sh` follows their IPC; untested.
 - **GNOME** has no wlr virtual-pointer or screencopy, so `pointer.sh` and `shot.sh` do not run.
   KDE is untested.

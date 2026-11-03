@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Usage: cursor.sh save | restore
+# Usage: cursor.sh save | ensure | restore
 # The agent shares the owner's single pointer. `save` prints and stores the pointer's global
-# position X Y in ${XDG_RUNTIME_DIR:-/tmp}/computer-use-cursor; `restore` moves the pointer back
-# there (a move, no click), deletes the file and prints X Y. Exit 1: no position could be read
-# (save) or none is saved (restore); exit 2: bad usage.
+# position X Y in ${XDG_RUNTIME_DIR:-/tmp}/computer-use/cursor; `ensure` does the same silently
+# unless a save from the last 30 minutes exists (pointer.sh calls it before it first moves the
+# pointer); `restore` moves the pointer back there (a move, no click), deletes the file and prints
+# X Y. Exit 1: no position could be read (save, ensure) or none is saved (restore); exit 2: bad
+# usage.
 # niri has no IPC for the pointer (niri-wm/niri#4348), so save diffs `grim` against `grim -c`
 # taken back to back on each output. The pointer is the only thing that differs on a still screen.
 # It retries up to 3 times when the diff is empty (pointer hidden) or large (screen changing).
@@ -11,11 +13,12 @@
 # not with the background, so its box varies by up to 4 px per side; the box centre does not move.
 set -euo pipefail
 here=$(dirname "$(readlink -f "$0")")
-state=${XDG_RUNTIME_DIR:-/tmp}/computer-use-cursor
-usage() { echo "usage: cursor.sh save|restore" >&2; exit 2; }
+state=${XDG_RUNTIME_DIR:-/tmp}/computer-use/cursor
+usage() { echo "usage: cursor.sh save|ensure|restore" >&2; exit 2; }
 [ $# -eq 1 ] || usage
 case $1 in
-save)
+save|ensure)
+    if [ "$1" = ensure ] && [ -s "$state" ] && [ -n "$(find "$state" -mmin -30)" ]; then exit 0; fi
     pos=$(python3 -I - "$here" <<'PY'
 import concurrent.futures as cf, io, subprocess, sys, time
 from PIL import Image, ImageChops
@@ -101,14 +104,15 @@ except OSError as e:
     fail(str(e))
 PY
     ) || exit 1
+    mkdir -p "$(dirname "$state")"
     echo "$pos" > "$state"
-    echo "$pos"
+    [ "$1" = ensure ] || echo "$pos"
     ;;
 restore)
     [ -s "$state" ] || { echo "cursor.sh: no saved position (run save first)" >&2; exit 1; }
     read -r x y < "$state"
     [[ $x =~ ^-?[0-9]+$ && $y =~ ^-?[0-9]+$ ]] || { echo "cursor.sh: bad state in $state" >&2; exit 1; }
-    "$here/pointer.sh" "$x" "$y"
+    POINTER_WHY="restoring the owner's pointer" POINTER_AUTOSAVE=0 "$here/pointer.sh" "$x" "$y"
     rm -f "$state"
     echo "$x $y"
     ;;

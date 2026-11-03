@@ -11,7 +11,7 @@ the wrong monitor. This skill takes the routes that measured exact:
 
 | Need | Route | Why |
 | --- | --- | --- |
-| Point, click, drag, scroll | `vptr`, a 100-line C client of the wlr virtual-pointer protocol | One absolute jump over the whole layout: exact on every output, 1-2 ms, no root, no `/dev/uinput` |
+| Point, click, drag, scroll | `vptr`, a 100-line C client of the wlr virtual-pointer protocol | One absolute jump over the whole layout: exact on every output, 1-2 ms, no root, no `/dev/uinput`. `pointer.sh` first waits until the owner is idle (`vidle`, ext-idle-notify) and requires a stated reason |
 | See | `grim` per output or region | No portal permission prompt; one output stays under the model's image size limit; the cursor is hidden unless `SHOT_CURSOR=1` (`grim -c`) |
 | Find a label | `tesseract` with Vietnamese-aware fuzzy matching | Folds diacritics, glued words and l/I confusions that OCR produces on UI text |
 | Press, check, fill without coordinates | `ax.py` over AT-SPI | Works on unfocused windows and through layout shifts, under 0.2 s; `set` reads the value back (exit 3 on mismatch) and leaves the clipboard alone except for emoji and values with a tab or newline; GTK4 check buttons expose no action, so use `find.sh` and `pointer.sh` there |
@@ -26,7 +26,7 @@ git clone https://github.com/epistex-dev/computer-use ~/.claude/skills/computer-
 
 Then run `./setup.sh` in the installed directory.
 
-`setup.sh` is idempotent. It installs packages with pacman on Arch, builds `vptr`, turns on
+`setup.sh` is idempotent. It installs packages with pacman on Arch, builds `vptr` and `vidle`, turns on
 AT-SPI, and proves a pointer drag with `slurp`; exit 0 means ready. On other distros, install
 these first (names untested):
 
@@ -44,10 +44,11 @@ The agent reads [SKILL.md](SKILL.md). By hand:
 ```sh
 ./shot.sh                       # /tmp/computer-use/shot.jpg origin=1920,0 size=1920x1080
 ./find.sh "Allow"               # 3046 363 92 "Allow"
-./pointer.sh 3046 363 left
+export POINTER_WHY="no shortcut or accessibility route"   # pointer.sh exits 2 without a reason
+./pointer.sh 3046 363 left      # waits for the owner to be idle 2 s (POINTER_IDLE_MS), exit 4 after 30 s (POINTER_WAIT_S)
 ./pointer.sh 500 400 drag 700 600
 ./pointer.sh 1000 500 scroll 5
-./cursor.sh save                # 300 200: the owner's pointer, read by diffing grim and grim -c
+./cursor.sh save                # 300 200: the owner's pointer, read by diffing grim and grim -c; pointer.sh saves it itself
 ./cursor.sh restore             # moves it back (a move, no click) and forgets it
 ./ax.py 12345 do "Allow"        # PID from niri msg -j windows
 ./ax.py 12345 set "Search" "xin chào"   # exit 3 and mismatch: got "..." if the field differs
@@ -60,6 +61,7 @@ SHOT_CURSOR=1 ./shot.sh         # same output line, cursor drawn
 - [agent-sh/computer-use-linux](https://github.com/agent-sh/computer-use-linux) (MIT), whose
   accessibility-first design led to `ax.py`.
 - `wlr-virtual-pointer-unstable-v1.xml` is © 2019 Josef Gajdusek under the MIT license in the file.
+- `ext-idle-notify-v1.xml` is © 2015 Martin Gräßlin and © 2022 Simon Ser under the MIT license in the file.
 
 ## License
 

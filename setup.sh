@@ -32,6 +32,12 @@ wayland-scanner private-code "$here/wlr-virtual-pointer-unstable-v1.xml" "$build
 gcc -O2 -Wall -I"$build" -o "$here/vptr" "$here/vptr.c" "$build/protocol.c" -lwayland-client
 echo "✓ vptr built"
 
+# vidle: waits until the owner has been idle (ext-idle-notify-v1); pointer.sh calls it before every action.
+wayland-scanner client-header "$here/ext-idle-notify-v1.xml" "$build/ext-idle-notify-v1-client-protocol.h"
+wayland-scanner private-code "$here/ext-idle-notify-v1.xml" "$build/idle-protocol.c"
+gcc -O2 -Wall -I"$build" -o "$here/vidle" "$here/vidle.c" "$build/idle-protocol.c" -lwayland-client
+echo "✓ vidle built"
+
 # Accessibility for ax.py. Apps read it at launch, so already-running apps need a restart, and
 # Chromium and Electron apps also need --force-renderer-accessibility to expose page content.
 if command -v gsettings >/dev/null; then
@@ -46,7 +52,7 @@ slurp_pid=$!
 # A failed step must not leave slurp's overlay grabbing the owner's mouse.
 trap 'kill $slurp_pid 2>/dev/null || true; rm -rf "$build"' EXIT
 sleep 1.2
-"$here/pointer.sh" "$x" "$y" drag $((x + 200)) $((y + 200))
+POINTER_WHY="setup.sh proves the pointer; no key or tree route exists" "$here/pointer.sh" "$x" "$y" drag $((x + 200)) $((y + 200))
 sleep 0.8
 got=$(cat "$build/slurp.out")
 # slurp's WxH includes the last pixel, so it reads 200 or 201.
